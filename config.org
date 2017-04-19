@@ -1,0 +1,463 @@
+#+TITLE: Rob Kiggen's Emacs configuration
+#+AUTHOR: Rob Kiggen
+#+EMAIL: robby.kiggen@essential-it.be
+#+STARTUP: indent
+#+OPTIONS: ^:nil # Disable underscore causing subscript+OPTIONS: 
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="/static/readtheorg/css/htmlize.css"/>
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="/static/readtheorg/css/readtheorg.css"/>
+#+HTML_HEAD: <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+#+HTML_HEAD: <script type="text/javascript" src="/static/readtheorg/js/readtheorg.js"></script>
+
+* Introduction
+
+References: 
++ [[https://www.mfoot.com/static/emacs-config/][Martin Foot's Emacs Config]]
++ https://ogbe.net/emacsconfig.html
++ http://pages.sachachua.com/.emacs.d/Sacha.html#org6eefca2
+
+This file stores my emacs configuration. It is written using [[http://orgmode.org/][org-mode]] which is an excellent way to organise notes and,
+as it turns out, an excellent way to organise my configuration file. It is intended to be used with
+~org-babel-load-file~ which parses this file, generates a =config.el= file, then executes that during emacs startup. In
+this way my Emacs configuration serves as both the configuration settings /and/ a high level documentation of those
+settings. It provides an incredibly convenient way to organise configuration the full benefit of org mode's
+functionality available within the configuration file itself. More information can be found in the [[Installation instructions][Installation
+instructions]] section.
+
+This file is a work in progress that I try to keep organised. Like many people experiencing a
+new editor rather than spending an extended period of time reading emacs' extensive documentation, the configuration
+here has been a mix of searching and reading other people's =.emacs= files. I would recommend taking small parts of it and
+asking the inbuilt help system what each command does. I've tried to keep each section documented. You can do this with
+=C-h a=.
+
+This file makes a lot of use of the ~use-package~ function. This is a really nice way to keep the installation of a
+package, it's keybindings, configuration, packaged together in the config file. There's a good description on how it
+works [[http://www.lunaryorn.com/2015/01/06/my-emacs-configuration-with-use-package.html][here]] and you can see the project page [[https://github.com/jwiegley/use-package][here]].
+
+
+*Note*: Parts of this file are marked =TODO=. These are sections that require more work. They may not be properly
+documented, may be badly organised (maybe they should be part of other sections), or could be part of my old emacs
+configuration from before I used =org-mode= that I still haven't converted.
+
+* Installation instructions
+
+#+BEGIN_COMMENT
+I couldn't get org mode's publishing to handle this link nicely, so unfortunately it's in raw HTML.
+#+END_COMMENT
+
+#+BEGIN_HTML
+Copy the <a href="config.org">raw version of this file</a> to <code>~/.emacs.d/config.org</code>.
+#+END_HTML
+
+Then add ~(org-babel-load-file (concat user-emacs-directory "config.org"))~ to =~/.emacs=.
+
+Here is the contents of my =~/.emacs= file:
+
+#+BEGIN_SRC emacs-lisp :results none :tangle ~/.emacs
+;; Rob's .emacs file
+;;
+;; Author: Rob Kiggen <robby.kiggen@essential-it.be>
+
+;; Load the config
+(require 'org)
+(org-babel-load-file (concat user-emacs-directory "config.org"))
+#+END_SRC
+
+That's it.
+
+The reason that this works is that some parts of this file are carefully organised. =org-babel-load-file= pulls out and
+
+executes =emacs-lisp= code blocks in the order they're in the file. This means that it's very important that my [[Package repositories][Package
+repositories]] section comes before any of the other non-standard config.
+
+* Package repositories
+I use Melpa, Marmalade & Gnu for repositories.
+
+#+BEGIN_SRC emacs-lisp :results none
+(require 'package)
+(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/") t)
+(add-to-list 'package-archives '("melpa-stable" . "https://stable.melpa.org/packages/") t)
+(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/") t)
+(package-initialize)
+#+END_SRC
+
+Then, since I use ~use-package~ for every package from the repositories, initialise this first.
+
+#+BEGIN_SRC emacs-lisp :results none
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(eval-when-compile
+  (setq use-package-always-ensure t)
+  (require 'use-package)
+)
+#+END_SRC
+
+=use-package= has support for removing minor modes from the bottom. This requires the =diminish= package.
+#+BEGIN_SRC emacs-lisp :results none
+(use-package diminish)
+#+END_SRC
+
+* Startup time benchmarking
+It's possible to benchmark startup time in emacs. This is useful if evaluating this gets too slow. I keep these lines
+commented as it's not something I do generally. It also isn't safe to run on every machine since the =benchmark-init-el=
+package needs to be downloaded manually.
+
+#+BEGIN_SRC emacs-lisp :results none
+;(add-to-list 'load-path "/home/martinfoot/repositories/benchmark-init-el/")
+;(require 'benchmark-init-loaddefs)
+;(benchmark-init/activate)
+#+END_SRC
+
+* Load path
+TODO: Fix this!
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'load-path "~/org-mode/lisp/")
+#+END_SRC
+
+* User Information
+
+#+BEGIN_SRC emacs-lisp :results none
+  (setq user-full-name "Robby Kiggen"
+        user-mail-address "robby.kiggen@essential-it.be"
+        calendar-latitude 51.26
+        calendar-longitude 5.51
+        calendar-location-name "Hamont-Achel, BelgiÃ«")
+#+END_SRC
+
+* Start server
+Start the server first, but only if emacs is currently not running
+
+#+BEGIN_SRC emacs-lisp :results none
+	(require 'server)
+	(unless (server-running-p)
+	  (server-start)) 	
+#+END_SRC
+
+* Backup location
+Create backups in a dedicated backup folder instead of the working folder 
+
+#+BEGIN_SRC emacs-lisp : results none
+	(setq backup-directory-alist '(("." . "~/.emacs.d/backups")))
+#+END_SRC
+
+* Fill columns and line highlighting
+I find a 120 character line length is best for modern screens. Individual languages/major modes can override this.
+
+In text-based modes (non-programming modes) I enable automatic line wrapping also.
+
+#+BEGIN_SRC emacs-lisp :results none
+	(setq-default fill-column 120)
+	(add-hook 'text-mode-hook 'auto-fill-mode)
+#+END_SRC
+
+I also like a highlight on the screen to show the current cursor line.
+=global-hl-line-mode= softly highlights the background color of the line
+containing point. It makes it a bit easier to find point, and it's useful when
+pairing or presenting code.
+
+#+BEGIN_SRC emacs-lisp :results none
+(global-hl-line-mode)
+#+END_SRC
+
+* Line numbering and cursor position
+I've had a slight change of heart. Typically I would show line numbers everywhere, but now, instead, I leave them turned
+off to save space. If I need to jump to a specific line, I'm using Avy mode to enable =g l= for go to line. This is just
+as fast. See my [[file:config.org::*Window navigation and scrolling][Window navigation and scrolling section]].
+
+I also show the current cursor position column number in the bottom left of the screen:
+#+BEGIN_SRC emacs-lisp :results none
+	(column-number-mode)
+#+END_SRC
+ 
+* Disable startup screen & welcome message
+
+Getting rid of the startup screen and welcome message
+
+#+BEGIN_SRC emacs-lisp :results none
+	(setq inhibit-splash-screen t)
+	(setq inhibit-startup-message t)
+	(setq package-enable-at-startup nil)
+#+END_SRC
+
+* Terminal Bell
+
+Change audible bell to visual cue
+
+#+BEGIN_SRC emacs-lisp	
+	(defun my-terminal-visible-bell ()
+        "A friendlier visual bell effect."
+        (invert-face 'mode-line)
+        (run-with-timer 0.1 nil 'invert-face 'mode-line))
+
+	(setq visible-bell nil
+		ring-bell-function 'my-terminal-visible-bell)		
+#+END_SRC
+
+* Menu bar
+Don't show emacs' menu bar - I remember enough shortcuts and understand how to use the inbuilt help system if I don't
+remember the shortcut for something. When we're using graphical emacs, also disable the tooltips for the mouse an the
+scroll bar.
+
+#+BEGIN_SRC emacs-lisp :results none
+(when window-system
+  (tooltip-mode -1)
+  (tool-bar-mode -1)
+  (scroll-bar-mode -1))
+
+(menu-bar-mode -1)
+#+END_SRC
+
+* Yes or no prompts
+Use 'y' or 'n' instead of 'yes' and 'no' in interactive prompts. This saves typing.
+
+#+BEGIN_SRC emacs-lisp :results none
+(defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+
+* OS Clipboard integration
+Add proper support for the OS clipboard integrations. Only tested under X.
+
+First we enable the emacs copy buffer to be linked to the OS clipboard. Lines copied from the OS can be pasted into
+emacs and lines copied from emacs can be pasted into other OS windows.
+
+#+BEGIN_SRC emacs-lisp :results none
+(setq x-select-enable-clipboard t)
+#+END_SRC
+
+Now we enable 'primary selection'. The clipboard config above is for the operating system copy buffer with =C-c= and
+=C-v=. Primary selection is the mouse select buffer that usually works as pasted with a middle click. Enabling this allows
+selected text in emacs to be copied there so I can select in the program and paste into somewhere else using X.
+
+#+BEGIN_SRC emacs-lisp :results none
+(setq x-select-enable-primary t)
+(setq mouse-drag-copy-region t)
+#+END_SRC
+
+* Default Working Directory
+Change the default working directory to:  
+
+#+BEGIN_SRC emacs-lisp
+   (setq default-directory "~/Notes" )
+#+END_SRC
+
+* Use fancy lambdas
+
+Why not?
+
+#+BEGIN_SRC emacs-lisp
+  (global-prettify-symbols-mode t)
+  (setq prettify-symbols-unprettify-at-point 'right-edge)
+#+END_SRC
+
+* Load Dracula theme
+#+BEGIN_SRC emacs-lisp
+	(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
+	(load-theme 'dracula t)
+#+END_SRC
+
+* Set default font and configure font resizing
+
+I'm partial to Inconsolata.
+
+The standard =text-scale-= functions just resize the text in the current buffer;
+I'd generally like to resize the text in /every/ buffer, and I usually want to
+change the size of the modeline, too (this is especially helpful when
+presenting). These functions and bindings let me resize everything all together!
+
+Note that this overrides the default font-related keybindings from
+=sensible-defaults=.
+
+#+BEGIN_SRC emacs-lisp
+(setq hrs/default-font "Inconsolata")
+(setq hrs/default-font-size 10)
+(setq hrs/current-font-size hrs/default-font-size)
+
+(setq hrs/font-change-increment 1.1)
+
+(defun hrs/set-font-size ()
+  "Set the font to `hrs/default-font' at `hrs/current-font-size'."
+  (set-frame-font
+   (concat hrs/default-font "-" (number-to-string hrs/current-font-size))))
+
+(defun hrs/reset-font-size ()
+  "Change font size back to `hrs/default-font-size'."
+  (interactive)
+  (setq hrs/current-font-size hrs/default-font-size)
+  (hrs/set-font-size))
+
+(defun hrs/increase-font-size ()
+  "Increase current font size by a factor of `hrs/font-change-increment'."
+  (interactive)
+  (setq hrs/current-font-size
+        (ceiling (* hrs/current-font-size hrs/font-change-increment)))
+  (hrs/set-font-size))
+
+(defun hrs/decrease-font-size ()
+  "Decrease current font size by a factor of `hrs/font-change-increment', down to a minimum size of 1."
+  (interactive)
+  (setq hrs/current-font-size
+        (max 1
+             (floor (/ hrs/current-font-size hrs/font-change-increment))))
+  (hrs/set-font-size))
+
+(define-key global-map (kbd "C-0") 'hrs/reset-font-size)
+(define-key global-map (kbd "C-+") 'hrs/increase-font-size)
+(define-key global-map (kbd "C-=") 'hrs/increase-font-size)
+(define-key global-map (kbd "C-_") 'hrs/decrease-font-size)
+(define-key global-map (kbd "C--") 'hrs/decrease-font-size)
+
+(hrs/reset-font-size)
+#+END_SRC 
+
+* Window navigation and scrolling
+
+Scroll smoothly rather than by paging
+#+BEGIN_SRC emacs-lisp :results none
+(setq scroll-step 1)
+#+END_SRC
+
+When the cursor moves past the top or bottom of the window, scroll one line at a time rather than jumping. I don't like
+having to find my place in the file again.
+
+#+BEGIN_SRC emacs-lisp :results none
+(setq scroll-conservatively 10000)
+#+END_SRC
+
+Add vim-like navigation between panes in a window using windmove.
+
+#+BEGIN_SRC emacs-lisp :results none
+(windmove-default-keybindings)
+(global-set-key (kbd "C-c <left>") 'windmove-left)
+(global-set-key (kbd "C-c <right>") 'windmove-right)
+(global-set-key (kbd "C-c <up>") 'windmove-up)
+(global-set-key (kbd "C-c <down>") 'windmove-down)
+#+END_SRC
+
+* Publishing and task management with Org-mode
+
+** Display preferences
+
+I like to see an outline of pretty bullets instead of a list of asterisks.
+
+#+BEGIN_SRC emacs-lisp
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (org-bullets-mode t)))
+#+END_SRC
+
+Fix unicode slowness by falling back to Symbola font for unicode characters
+#+BEGIN_SRC emacs-lisp
+  (set-fontset-font "fontset-default" nil 
+                  (font-spec :size 20 :name "Symbola"))
+#+END_SRC
+
+
+I like seeing a little downward-pointing arrow instead of the usual ellipsis
+(=...=) that org displays when there's stuff under a header.
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-ellipsis " ⤵");; ⤵ ≫ ⚡⚡⚡
+#+END_SRC
+
+Use syntax highlighting in source blocks while editing.
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-src-fontify-natively t)
+#+END_SRC
+
+Make TAB act as if it were issued in a buffer of the language's major mode.
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-src-tab-acts-natively t)
+#+END_SRC
+
+When editing a code snippet, use the current window rather than popping open a
+new one (which shows the same information).
+
+#+BEGIN_SRC emacs-lisp
+  (setq org-src-window-setup 'current-window)
+#+END_SRC
+
+
+* Editor augmentation
+
+** Markdown mode
+[[http://jblevins.org/projects/markdown-mode/][Markdown-mode]]  is a major mode for editing Markdown-formatted text.
+
+#+BEGIN_SRC emacs-lisp :results none
+(use-package markdown-mode
+  :ensure t
+  :commands (markdown-mode gfm-mode)
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :init (setq markdown-command "multimarkdown"))
+#+END_SRC
+
+** Vim customisations
+[[http://www.emacswiki.org/emacs/Evil][Evil mode]] provides vim-style keybindings for emacs. It makes it much more usable for a long-time vim user. [[https://github.com/timcharper/evil-surround][Evil-surround]]
+is an emacs wrapper of Tim Pope's [[https://github.com/tpope/vim-surround][vim-surround]] plugin. [[https://github.com/krisajenkins/evil-tabs][Evil-tabs]] is an emacs mode that allows tabs with vim's tab
+keybindings.
+
+#+BEGIN_SRC emacs-lisp :results none
+(use-package evil
+  :diminish
+  :config (evil-mode) ; Enable evil mode globally
+)
+
+(use-package evil-surround
+  :defer t
+  :diminish
+  :config (global-evil-surround-mode t)
+)
+
+(use-package evil-tabs
+  :defer t
+  :diminish
+  :config (global-evil-tabs-mode t)
+)
+
+#+END_SRC
+
+By default emacs doesn't tab indent to the current level when you hit return. Move to vim style.
+
+Note: actually electric-indent-mode is used for this.
+
+#+BEGIN_SRC emacs-lisp :results none
+(global-set-key (kbd "RET") 'newline-and-indent)
+#+END_SRC
+
+** Neotree
+Sometimes I need to see the directory structure for the current file. The [[http://www.emacswiki.org/emacs/NeoTree][NeoTree]] plugin helps here with a togglable
+pane that will pop up and disappear with the =F8= key.
+
+#+BEGIN_SRC emacs-lisp :results none
+
+(use-package neotree
+    :bind
+  ([f8] . neotree-toggle)
+)
+
+(add-hook 'neotree-mode-hook
+            (lambda ()
+              (define-key evil-normal-state-local-map (kbd "TAB") 'neotree-enter)
+              (define-key evil-normal-state-local-map (kbd "SPC") 'neotree-enter)
+              (define-key evil-normal-state-local-map (kbd "g") 'neotree-refresh)
+              (define-key evil-normal-state-local-map (kbd "H") 'neotree-hidden-file-toggle)
+              (define-key evil-normal-state-local-map (kbd "q") 'neotree-hide)
+              (define-key evil-normal-state-local-map (kbd "RET") 'neotree-enter)))
+
+(setq neo-smart-open t)
+#+END_SRC
+
+
+
+* Publishing and Exporting
+
+#+BEGIN_SRC emacs-lisp :results none
+(require 'ox-latex)
+(load "H:/.emacs.d/export-templates/latex/blue-ruin.el") 
+(load "H:/.emacs.d/export-templates/latex/blue-ruin_no_cover.el") 
+#+END_SRC
